@@ -1,14 +1,13 @@
 $schema: https://azuremlschemas.azureedge.net/latest/pipelineJob.schema.json
 type: pipeline
+display_name: hello_pipeline
 jobs:
   hello_job:
     command: echo "hello"
-    environment:
-      image: python:latest
+    environment: azureml:AzureML-sklearn-0.24-ubuntu18.04-py37-cpu@latest
     compute: azureml:cpu-cluster
   world_job:
     command: echo "world"
-    environment:
-      image: python
+    environment: azureml:AzureML-sklearn-0.24-ubuntu18.04-py37-cpu@latest
     compute: azureml:cpu-cluster
  

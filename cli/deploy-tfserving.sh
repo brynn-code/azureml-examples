@@ -42,7 +42,7 @@ docker stop tfserving-test
 export ENDPOINT_NAME="<YOUR_ENDPOINT_NAME>"
 # </set_endpoint_name>
 
-export ENDPOINT_NAME=endpt-`echo $RANDOM`
+export ENDPOINT_NAME=endpt-tfserving-`echo $RANDOM`
 
 # <create_endpoint>
 az ml online-endpoint create --name $ENDPOINT_NAME -f endpoints/online/custom-container/tfserving-endpoint.yml
@@ -74,13 +74,11 @@ then
   echo "Deployment completed successfully"
 else
   echo "Deployment failed"
-  # <delete_endpoint_and_model_and_environment>
+  # <delete_endpoint_and_model>
   az ml online-endpoint delete -n $ENDPOINT_NAME -y
   echo "deleting model..."
   az ml model delete -n tfserving-mounted --version 1
-  echo "Deleting environment"
-  az ml environment delete -n tfserving --version 1
-  # </delete_endpoint_and_model_and_environment>
+  # </delete_endpoint_and_model>
   cleanup
   exit 1
 fi
@@ -97,12 +95,10 @@ done
 echo "Tested successfully, response was $RESPONSE. Cleaning up..."
 
 echo "Deployment failed"
-# <delete_endpoint_and_model_and_environment>
+# <delete_endpoint_and_model>
 az ml online-endpoint delete -n $ENDPOINT_NAME -y
 echo "deleting model..."
 az ml model delete -n tfserving-mounted --version 1
-echo "Deleting environment"
-az ml environment delete -n tfserving --version 1
-# </delete_endpoint_and_model_and_environment>
+# </delete_endpoint_and_model>
 
 cleanup

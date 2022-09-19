@@ -6,7 +6,6 @@
 *mlruns
 *.vscode
 *catboost_info
-*.pkl
 *.mag
 *.ckpt
 *lightning_logs
@@ -14,3 +13,5 @@
 *.pyc
 *config.json
 *.log
+scratch/*
+config-amlexamples.json

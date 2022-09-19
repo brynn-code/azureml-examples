@@ -5,19 +5,22 @@ import glob
 import argparse
 
 # define constants
-EXCLUDED_JOBS = []
+EXCLUDED_JOBS = ["java"]
 EXCLUDED_ENDPOINTS = ["batch", "online", "amlarc"]
 EXCLUDED_RESOURCES = [
     "workspace",
     "datastore",
     "vm-attach",
     "instance",
+    "connections",
+    "compute/cluster-user-identity",
 ]
-EXCLUDED_ASSETS = [
-    "conda-yamls",
-    "mlflow-models",
-]
+EXCLUDED_ASSETS = ["conda-yamls", "mlflow-models"]
+EXCLUDED_SCHEDULES = []
 EXCLUDED_SCRIPTS = ["setup", "cleanup", "run-job"]
+BRANCH = "main"  # default - do not change
+# BRANCH = "sdk-preview"  # this should be deleted when this branch is merged to main
+
 
 # define functions
 def main(args):
@@ -31,7 +34,16 @@ def main(args):
     jobs = sorted(glob.glob("jobs/**/*job*.yml", recursive=True))
     jobs += sorted(glob.glob("jobs/basics/*.yml", recursive=False))
     jobs += sorted(glob.glob("jobs/*/basics/**/*job*.yml", recursive=True))
-    jobs += sorted(glob.glob("jobs/*/basics/**/*pipeline*.yml", recursive=True))
+    jobs += sorted(glob.glob("jobs/pipelines/**/*pipeline*.yml", recursive=True))
+    jobs += sorted(
+        glob.glob("jobs/automl-standalone-jobs/**/cli-automl-*.yml", recursive=True)
+    )
+    jobs += sorted(
+        glob.glob("jobs/pipelines-with-components/**/*pipeline*.yml", recursive=True)
+    )
+    jobs += sorted(
+        glob.glob("jobs/automl-standalone-jobs/**/*cli-automl*.yml", recursive=True)
+    )
     jobs = [
         job.replace(".yml", "")
         for job in jobs
@@ -70,15 +82,23 @@ def main(args):
         if not any(excluded in script for excluded in EXCLUDED_SCRIPTS)
     ]
 
+    # get list of schedules
+    schedules = sorted(glob.glob("schedules/**/*schedule.yml", recursive=True))
+    schedules = [
+        schedule.replace(".yml", "")
+        for schedule in schedules
+        if not any(excluded in schedule for excluded in EXCLUDED_SCHEDULES)
+    ]
+
     # write workflows
-    write_workflows(jobs, endpoints, resources, assets, scripts)
+    write_workflows(jobs, endpoints, resources, assets, scripts, schedules)
 
     # read existing README.md
     with open("README.md", "r") as f:
         readme_before = f.read()
 
     # write README.md
-    write_readme(jobs, endpoints, resources, assets, scripts)
+    write_readme(jobs, endpoints, resources, assets, scripts, schedules)
 
     # read modified README.md
     with open("README.md", "r") as f:
@@ -114,7 +134,7 @@ def modify_notebooks(notebooks):
             json.dump(data, f, indent=1)
 
 
-def write_readme(jobs, endpoints, resources, assets, scripts):
+def write_readme(jobs, endpoints, resources, assets, scripts, schedules):
     # read in prefix.md and suffix.md
     with open("prefix.md", "r") as f:
         prefix = f.read()
@@ -131,11 +151,12 @@ def write_readme(jobs, endpoints, resources, assets, scripts):
     )
     assets_table = "\n**Assets** ([assets](assets))\n\npath|status|description\n-|-|-\n"
     scripts_table = "\n**Scripts**\n\npath|status|\n-|-\n"
+    schedules_table = "\n**Schedules**\n\npath|status|\n-|-\n"
 
     # process jobs
     for job in jobs:
         # build entries for tutorial table
-        status = f"[![{job}](https://github.com/Azure/azureml-examples/workflows/cli-{job.replace('/', '-')}/badge.svg?branch=main)](https://github.com/Azure/azureml-examples/actions/workflows/cli-{job.replace('/', '-')}.yml)"
+        status = f"[![{job}](https://github.com/Azure/azureml-examples/workflows/cli-{job.replace('/', '-')}/badge.svg?branch={BRANCH})](https://github.com/Azure/azureml-examples/actions/workflows/cli-{job.replace('/', '-')}.yml)"
         description = "*no description*"
         try:
             with open(f"{job}.yml", "r") as f:
@@ -153,7 +174,7 @@ def write_readme(jobs, endpoints, resources, assets, scripts):
     # process endpoints
     for endpoint in endpoints:
         # build entries for tutorial table
-        status = f"[![{endpoint}](https://github.com/Azure/azureml-examples/workflows/cli-{endpoint.replace('/', '-')}/badge.svg?branch=main)](https://github.com/Azure/azureml-examples/actions/workflows/cli-{endpoint.replace('/', '-')}.yml)"
+        status = f"[![{endpoint}](https://github.com/Azure/azureml-examples/workflows/cli-{endpoint.replace('/', '-')}/badge.svg?branch={BRANCH})](https://github.com/Azure/azureml-examples/actions/workflows/cli-{endpoint.replace('/', '-')}.yml)"
         description = "*no description*"
         try:
             with open(f"{endpoint}.yml", "r") as f:
@@ -171,7 +192,7 @@ def write_readme(jobs, endpoints, resources, assets, scripts):
     # process resources
     for resource in resources:
         # build entries for tutorial table
-        status = f"[![{resource}](https://github.com/Azure/azureml-examples/workflows/cli-{resource.replace('/', '-')}/badge.svg?branch=main)](https://github.com/Azure/azureml-examples/actions/workflows/cli-{resource.replace('/', '-')}.yml)"
+        status = f"[![{resource}](https://github.com/Azure/azureml-examples/workflows/cli-{resource.replace('/', '-')}/badge.svg?branch={BRANCH})](https://github.com/Azure/azureml-examples/actions/workflows/cli-{resource.replace('/', '-')}.yml)"
         description = "*no description*"
         try:
             with open(f"{resource}.yml", "r") as f:
@@ -189,7 +210,7 @@ def write_readme(jobs, endpoints, resources, assets, scripts):
     # process assets
     for asset in assets:
         # build entries for tutorial table
-        status = f"[![{asset}](https://github.com/Azure/azureml-examples/workflows/cli-{asset.replace('/', '-')}/badge.svg?branch=main)](https://github.com/Azure/azureml-examples/actions/workflows/cli-{asset.replace('/', '-')}.yml)"
+        status = f"[![{asset}](https://github.com/Azure/azureml-examples/workflows/cli-{asset.replace('/', '-')}/badge.svg?branch={BRANCH})](https://github.com/Azure/azureml-examples/actions/workflows/cli-{asset.replace('/', '-')}.yml)"
         description = "*no description*"
         try:
             with open(f"{asset}.yml", "r") as f:
@@ -207,12 +228,22 @@ def write_readme(jobs, endpoints, resources, assets, scripts):
     # process scripts
     for script in scripts:
         # build entries for tutorial table
-        status = f"[![{script}](https://github.com/Azure/azureml-examples/workflows/cli-scripts-{script}/badge.svg?branch=main)](https://github.com/Azure/azureml-examples/actions/workflows/cli-scripts-{script}.yml)"
+        status = f"[![{script}](https://github.com/Azure/azureml-examples/workflows/cli-scripts-{script}/badge.svg?branch={BRANCH})](https://github.com/Azure/azureml-examples/actions/workflows/cli-scripts-{script}.yml)"
         link = f"https://scripts.microsoft.com/azure/machine-learning/{script}"
 
         # add row to tutorial table
         row = f"[{script}.sh]({script}.sh)|{status}\n"
         scripts_table += row
+
+    # process schedules
+    for schedule in schedules:
+        # build entries for tutorial table
+        status = f"[![{schedule}](https://github.com/Azure/azureml-examples/workflows/cli-schedules-{schedule}/badge.svg?branch={BRANCH})](https://github.com/Azure/azureml-examples/actions/workflows/cli-schedules-{schedule}.yml)"
+        link = f"https://schedules.microsoft.com/azure/machine-learning/{schedule}"
+
+        # add row to tutorial table
+        row = f"[{schedule}.yml]({schedule}.yml)|{status}\n"
+        schedules_table += row
 
     # write README.md
     print("writing README.md...")
@@ -224,11 +255,13 @@ def write_readme(jobs, endpoints, resources, assets, scripts):
             + endpoints_table
             + resources_table
             + assets_table
+            + schedules_table
             + suffix
         )
+    print("Finished writing README.md...")
 
 
-def write_workflows(jobs, endpoints, resources, assets, scripts):
+def write_workflows(jobs, endpoints, resources, assets, scripts, schedules):
     print("writing .github/workflows...")
 
     # process jobs
@@ -257,6 +290,11 @@ def write_workflows(jobs, endpoints, resources, assets, scripts):
         # write workflow file
         write_script_workflow(script)
 
+    # process schedules
+    for schedule in schedules:
+        # write workflow file
+        write_schedule_workflow(schedule)
+
 
 def check_readme(before, after):
     return before == after
@@ -284,6 +322,7 @@ def parse_path(path):
 
 def write_job_workflow(job):
     filename, project_dir, hyphenated = parse_path(job)
+    is_pipeline_sample = "jobs/pipelines" in job
     creds = "${{secrets.AZ_CREDS}}"
     workflow_yaml = f"""name: cli-{hyphenated}
 on:
@@ -293,12 +332,13 @@ on:
   pull_request:
     branches:
       - main
-      - cli-preview
-      - releases/current
+      - sdk-preview
     paths:
       - cli/{project_dir}/**
-      - .github/workflows/cli-{hyphenated}.yml
-      - cli/setup.sh
+      - .github/workflows/cli-{hyphenated}.yml\n"""
+    if is_pipeline_sample:
+        workflow_yaml += "      - cli/run-pipeline-jobs.sh\n" ""
+    workflow_yaml += f"""      - cli/setup.sh
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -314,8 +354,8 @@ jobs:
       working-directory: cli
       continue-on-error: true
     - name: run job
-      run: bash -x run-job.sh {job}.yml
-      working-directory: cli\n"""
+      run: bash -x {os.path.relpath(".", project_dir)}/run-job.sh {filename}.yml
+      working-directory: cli/{project_dir}\n"""
 
     # write workflow
     with open(f"../.github/workflows/cli-{job.replace('/', '-')}.yml", "w") as f:
@@ -333,8 +373,7 @@ on:
   pull_request:
     branches:
       - main
-      - cli-preview
-      - releases/current
+      - sdk-preview
     paths:
       - cli/{project_dir}/**
       - .github/workflows/cli-{hyphenated}.yml
@@ -373,8 +412,7 @@ on:
   pull_request:
     branches:
       - main
-      - cli-preview
-      - releases/current
+      - sdk-preview
     paths:
       - cli/{asset}.yml
       - .github/workflows/cli-{hyphenated}.yml
@@ -413,8 +451,7 @@ on:
   pull_request:
     branches:
       - main
-      - cli-preview
-      - releases/current
+      - sdk-preview
     paths:
       - cli/{script}.sh
       - .github/workflows/cli-scripts-{hyphenated}.yml
@@ -433,14 +470,54 @@ jobs:
       run: bash setup.sh
       working-directory: cli
       continue-on-error: true
-    - name: scripts installs
-      run: sudo apt-get upgrade -y && sudo apt-get install uuid-runtime jq -y
     - name: test script script
       run: set -e; bash -x {script}.sh
       working-directory: cli\n"""
 
     # write workflow
     with open(f"../.github/workflows/cli-scripts-{hyphenated}.yml", "w") as f:
+        f.write(workflow_yaml)
+
+
+def write_schedule_workflow(schedule):
+    filename, project_dir, hyphenated = parse_path(schedule)
+    creds = "${{secrets.AZ_CREDS}}"
+    workflow_yaml = f"""name: cli-schedules-{hyphenated}
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0/4 * * *"
+  pull_request:
+    branches:
+      - main
+      - sdk-preview
+    paths:
+      - cli/{schedule}.yml
+      - .github/workflows/cli-schedules-{hyphenated}.yml
+      - cli/setup.sh
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: check out repo
+      uses: actions/checkout@v2
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: {creds}
+    - name: setup
+      run: bash setup.sh
+      working-directory: cli
+      continue-on-error: true
+    - name: create schedule
+      run: az ml schedule create -f ./{schedule}.yml --set name="ci_test_{filename}"
+      working-directory: cli\n
+    - name: disable schedule
+      run: az ml schedule disable --name ci_test_{filename}
+      working-directory: cli\n"""
+
+    # write workflow
+    with open(f"../.github/workflows/cli-schedules-{hyphenated}.yml", "w") as f:
         f.write(workflow_yaml)
 
 

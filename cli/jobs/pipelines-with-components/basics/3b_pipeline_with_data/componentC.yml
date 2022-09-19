@@ -1,23 +1,22 @@
 $schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
 type: command
 
-name: componentC
+name: component_c
 display_name: componentC
 version: 1
 
 inputs:
-  componentC_input:
-    type: path
+  component_c_input:
+    type: uri_folder
 
 outputs:
-  componentC_output:
-    type: path
+  component_c_output:
+    type: uri_folder
 
-code:
-  local_path: ./componentC_src
+code: ./componentC_src
 
 environment: 
   image: python
 
 command: >-
-  python hello.py --componentC_input ${{inputs.componentC_input}} --componentC_output ${{outputs.componentC_output}}
+  python hello.py --componentC_input ${{inputs.component_c_input}} --componentC_output ${{outputs.component_c_output}}
